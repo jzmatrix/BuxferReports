@@ -1,0 +1,226 @@
+#!/usr/bin/perl
+################################################################################
+use YAML::Tiny;     # libyaml-tiny-perl
+# use LWP;            # liblwp-protocol-https-perl
+use Data::Dumper;
+# use JSON;           # libjson-perl
+use DBI;            # libdbd-mysql-perl / libdbi-perl
+use MIME::Lite;		# libmime-lite-html-perl
+################################################################################
+&readConfig;
+################################################################################
+&dbInit;
+&initSQL;
+#########
+# &createSchema;
+#########
+$lastProc = &getLastProc();
+print "LastProc :: $lastProc\n";
+##########
+$accountList = &getAccountList($lastProc);
+$accountBalance = &getAccountBalance($lastProc);
+$transactionData = &getTransactionList($lastProc);
+##########
+# print "AccountList :: $accountList\n";
+# print "AccountBalance :: $accountBalance\n";
+# print "TransList :: $transactionData\n";
+##########
+my $emailBody = "";
+if ($acountList) { $emailBody .= $accountList; }
+if ($accountBalance)
+{
+	if ($emailBody) { $emailBody .= "<hr />\n"; }
+	$emailBody .= $accountBalance;
+}
+if ($transactionData)
+{
+	if ($emailBody) { $emailBody .= "<hr />\n"; }
+	$emailBody .= $transactionData;
+}
+##########
+if ($emailBody)
+{
+	$msg = MIME::Lite->new(
+		From 	=> 'budget@ziemba.net',
+		To      => 'jason@ziemba.net',
+		Subject => "Daily Budget Notice",
+		Type    => 'multipart/related'
+	);
+	$msg->attach(
+		Type => 'text/html',
+		Data => $emailBody
+	);
+	$msg->send('smtp','zmr.sn.zdns.us', Debug=>1 );
+}
+##########
+&updateLastProc;
+################################################################################
+################################################################################
+################################################################################
+sub updateLastProc
+{
+	my $updateLastProc_SQL = "UPDATE buxfer.lastproc SET lastproc = NOW();";
+	if (!($updateLastProc = $dbh->prepare($updateLastProc_SQL))) { die "Unable to prepare :: $updateLastProc_SQL\n";}
+	$updateLastProc->execute();
+}
+################################################################################
+sub getTransactionList
+{
+	my ($lastProc) = @_;
+	######
+	my $outputString = "<table align='center'>";
+	$outputString .= "<tr><td bgcolor='#C0C0C0'><center><strong>Date</td><td bgcolor='#C0C0C0'><center><strong>Status</td><td bgcolor='#C0C0C0'><center><strong>Account</td><td bgcolor='#C0C0C0'><center><strong>Amount</td><td bgcolor='#C0C0C0'><center><strong>Type</td><td bgcolor='#C0C0C0'><center><strong>Description</td><td bgcolor='#C0C0C0'><center><strong>Tags</td></tr>\n";
+	my $transAccount = 0;
+	######
+	my $getTransactionList_SQL = "SELECT transDate, transStatus, transAccountName, transAmount, transType, transDescription, transTags, transAdded FROM buxfer.transactions WHERE transAdded >= '$lastProc' ORDER BY transDate DESC, transDescription";
+	if (!($getTransactionList = $dbh->prepare($getTransactionList_SQL))) { die "Unable to prepare :: $getTransactionList_SQL\n";}
+	if ($getTransactionList->execute())
+	{
+		while (my ($transDate, $transStatus, $transAccountName, $transAmount, $transType, $transDescription, $transTags, $transAdded) = $getTransactionList->fetchrow_array())
+		{
+			$transAccount ++;
+			$outputString .= "<tr><td>$transDate</td><td>$transStatus</td><td>$transAccountName</td><td>$transAmount</td><td>$transType</td><td>$transDescription</td><td>$transTags</td></tr>\n";
+		}
+		$outputString .= "</table>\n";
+		# print "COUNT :: $transAccount\n";
+	}
+	if (!$transAccount) { $outputString = ""; }
+	return $outputString;
+}
+################################################################################
+sub getAccountBalance
+{
+	my ($lastProc) = @_;
+	######
+	my $outputString = "<table align='center'>";
+	$outputString .= "<tr><td bgcolor='#C0C0C0'><center><strong>Account Name</td><td bgcolor='#C0C0C0'><center><strong>Account Balance</td><td bgcolor='#C0C0C0'><center><strong>Account Bank</td></tr>\n";
+	my $accountCount = 0;
+	######
+	my $getAccountList_SQL = "SELECT accountName, accountBalance, accountBank, accountCurrency, accountSynced FROM buxfer.accounts WHERE accountSynced >= '$lastProc'";
+	if (!($getAccountList = $dbh->prepare($getAccountList_SQL))) { die "Unable to prepare :: $getAccountList_SQL\n";}
+	if ($getAccountList->execute())
+	{
+		while (my ($accountName, $accountBalance, $accountBank, $accountCurrency, $accountSynced) = $getAccountList->fetchrow_array())
+		{
+			$accountCount ++;
+			$outputString .= "<tr><td>$accountName</td><td>$accountBalance</td><td>$accountBank</td></tr>\n";
+		}
+		$outputString .= "</table>\n";
+		# print "COUNT :: $accountCount\n";
+	}
+	if (!$accountCount) { $outputString = ""; }
+	return $outputString;
+}
+################################################################################
+sub getAccountList
+{
+	my ($lastProc) = @_;
+	######
+	my $outputString = "<table align='center'>";
+	$outputString .= "<tr><td bgcolor='#C0C0C0'><center><strong>Account Name</td><td bgcolor='#C0C0C0'><center><strong>Account Balance</td><td bgcolor='#C0C0C0'><center><strong>Account Bank</td></tr>\n";
+	my $accountCount = 0;
+	######
+	my $getAccountList_SQL = "SELECT accountName, accountBalance, accountBank, accountCurrency, accountSynced FROM buxfer.accounts WHERE accountAdded >= '$lastProc'";
+	if (!($getAccountList = $dbh->prepare($getAccountList_SQL))) { die "Unable to prepare :: $getAccountList_SQL\n";}
+	if ($getAccountList->execute())
+	{
+		while (my ($accountName, $accountBalance, $accountBank, $accountCurrency, $accountSynced) = $getAccountList->fetchrow_array())
+		{
+			$accountCount ++;
+			$outputString .= "<tr><td>$accountName</td><td>$accountBalance</td><td>$accountBank</td></tr>\n";
+		}
+		$outputString .= "</table>\n";
+		# print "COUNT :: $accountCount\n";
+	}
+	if (!$accountCount) { $outputString = ""; }
+	return $outputString;
+}
+################################################################################
+sub getLastProc
+{
+	my $lastProc;
+	if ($getLastProc->execute())
+	{
+		while (my ($tmpData) = $getLastProc->fetchrow_array())
+		{
+			$lastProc = $tmpData;
+		}
+	}
+	return $lastProc;
+}
+################################################################################
+sub dbInit
+{
+	$database_port = "3306";
+	#########################
+	$database      = $config->{'dbName'};
+    $database_srvr = $config->{'dbServer'};
+    $database_user = $config->{'dbUser'};
+    $database_pass = $config->{'dbPass'};
+    #########################
+	my $driver = "mysql";
+	#####
+	my $dsn = "DBI:$driver:database=$database:host=$database_srvr;port=$database_port";
+	#####
+	if (!($dbh = DBI->connect($dsn, $database_user, $database_pass,{PrintError => 1,RaiseError => 1,AutoCommit => 1,ShowErrorStatement=>1}))) {die "Error connecting to $database_srvr.\n";};
+}
+################################################################################
+sub initSQL
+{
+	my $getLastProc_SQL = "SELECT lastProc FROM buxfer.lastproc LIMIT 1;";
+	if (!($getLastProc = $dbh->prepare($getLastProc_SQL))) { die "Unable to prepare :: $getLastProc_SQL\n";}
+	##########
+    # my $insertAccount_SQL =  "INSERT INTO buxfer.Accounts (accountID, accountBalance, accountSynced, accountCurrency, accountBank, accountName) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE accountBalance = ?, accountSynced = ?, accountCurrency = ?, accountBank = ?, accountName = ?;";
+	# if (!($insertAccount = $dbh->prepare($insertAccount_SQL))) { die "Unable to prepare :: $insertAccount_SQL\n";}
+    # ##########
+    # my $insertTransaction_SQL = "INSERT INTO buxfer.Transactions (transID, transStatus, transDate, transTags, transAccountName, transPending, transAmount, transType, transAccountID, transDescription) VALUES (?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE transStatus = ?, transDate = ?, transTags = ?, transAccountName = ?, transPending = ?, transAmount = ?, transType = ?, transAccountID = ?, transDescription = ?";
+    # if (!($insertTransaction = $dbh->prepare($insertTransaction_SQL))) { die "Unable to prepare :: $insertTransaction_SQL\n";}
+}
+################################################################################
+# sub createSchema
+# {
+#     @expectedTables = ('lastproc');
+#     ##########
+#     $createStatement->{'lastproc'} = "CREATE TABLE `buxfer`.`lastproc` ( `lastproc` TIMESTAMP NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=latin1;";
+#     # $createStatement->{'Transactions'} = "CREATE TABLE `buxfer`.`Transactions` ( `transID` varchar(20) NOT NULL, `transStatus` varchar(45) DEFAULT NULL, `transDate` date DEFAULT NULL, `transTags` varchar(250) DEFAULT NULL, `transAccountName` varchar(150) DEFAULT NULL, `transPending` varchar(45) DEFAULT NULL, `transAmount` float(7,2) DEFAULT NULL, `transType` varchar(45) DEFAULT NULL, `transAccountID` varchar(45) DEFAULT NULL, `transDescription` varchar(250) DEFAULT NULL, `transAdded` timestamp NULL DEFAULT current_timestamp(), PRIMARY KEY (`transID`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;";
+#     ##########
+#     my $getTableList_SQL = "SHOW TABLES from `buxfer`;";
+# 	if (!($getTableList = $dbh->prepare($getTableList_SQL))) { print "Unable to prepare :: $getTableList_SQL\n"; 	exit; }
+# 	if ($getTableList->execute())
+# 	{
+# 		while (my ($tableName) = $getTableList->fetchrow_array())
+# 		{
+# 			# print "TABLE :: $tableName\n";
+# 			$tableList->{$tableName} = 1;
+# 		}
+# 	}
+#     ##########
+#     foreach (@expectedTables)
+#     {
+#         my $tableExist = $tableList->{$_};
+#         if (!$tableExist)
+#         {
+#             print "Creating missing table :: $_\n";
+#             my $createTable_SQL = $createStatement->{$_};
+#             if (!($createTable = $dbh->prepare($createTable_SQL))) { print "Unable to prepare :: $createTable_SQL\n"; 	exit; }
+#             $createTable->execute()
+#         }
+#     }
+# }
+################################################################################
+################################################################################
+sub readConfig
+{
+	opendir (DIR, "/config");
+	my @configFiles = readdir(DIR);
+	closedir (DIR);
+	foreach (@configFiles)
+	{
+    	my $configKey = $_;
+    	open(IN, "/config/" . $configKey);
+    	my $configValue = <IN>;
+		chomp $configValue;
+    	close (IN);
+    	$config->{$configKey} = $configValue;
+	}
+}

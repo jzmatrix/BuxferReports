@@ -1,0 +1,322 @@
+#!/usr/bin/perl
+################################################################################
+use MIME::Lite;					# libmime-lite-html-perl
+use Data::Dumper;
+use Date::Parse;
+use MIME::Entity;				# libmime-tools-perl
+use DBI;
+use Getopt::Long;
+use POSIX qw(strftime);
+use Date::Calc qw(:all);; # perl-Date-Calc
+
+use Net::SMTP;
+################################################################################
+&readConfig;
+################################################################################
+require("/opt/buxfer/_LIB/pullBudgetData");
+################################################################################
+$budgetData;
+################################################################################
+my $currentMonthStr =  strftime("%M",localtime(time()));
+my $currentMonth =  strftime("%m",localtime(time()));
+my $currentDay = strftime("%d",localtime(time()));
+my $currentYear =  strftime("%Y",localtime(time()));
+my $currentDate =  strftime("%Y-%m-%d",localtime(time()));
+my $currentDOW = strftime("%w",localtime(time()));
+
+$dim = Days_in_Month($currentYear,$currentMonth);
+
+# print "Banking REport :: $currentMonthStr :: $currentDay :: $currentMonth :: $currentYear :: $currentDate :: $currentDOW :: $dim\n";
+
+#####
+my $weekStart = $currentDay - $currentDOW;
+# $weekStart = 4;
+#####
+my $weekEnd = $currentDay + (6 - $currentDOW);
+# print "\tWEEK :: $weekStart :: $weekEnd\n";
+################################################################################
+&dbInit;
+&sqlInit;
+################################################################################
+&loadBudgetData;
+################################################################################
+my $unpaidCount = 0;
+my $notPaid = "<table align='center' border='1'>";
+$notPaid .= "<tr><td colspan='3'><center><h3>Unpaid Items</h3></center></td></tr>";
+$notPaid .= "<tr><td bgcolor='#C0C0C0'><center><strong>Bill Name</td><td bgcolor='#C0C0C0'><center><strong>Due Date</td><td bgcolor='#C0C0C0'><center><strong>Amount</td></tr>";
+foreach my $accountID (keys(%{$budgetData}))
+{
+	# print "CHECK :: $accountID\n";
+	my $checkAccount = 0;
+	my $accountPay = $budgetData->{$accountID}{'accountPay'};
+	my $debtorName = $budgetData->{$accountID}{'debtorName'};
+	my $due1st = $budgetData->{$accountID}{'due1st'};
+	my $due15th = $budgetData->{$accountID}{'due15th'};
+	my $pay1st = $budgetData->{$accountID}{'pay1st'};
+	my $pay15th = $budgetData->{$accountID}{'pay15th'};
+	my $accountPaid1st = $budgetData->{$accountID}{'accountPaid1st'};
+	my $accountPaid15th = $budgetData->{$accountID}{'accountPaid15th'};
+	if (($due1st) && ($due1st < $weekStart)) { $checkAccount = 1;}
+	if (($due15th) && ($due15th < $weekStart)) { $checkAccount = 1;}
+	if ($checkAccount)
+	{
+		my $itemPaid = 0;
+		#####
+		my $dueDate;
+		if ($accountPay == 1)
+		{
+			$dueDate = $due1st;
+			$dueAmount = $pay1st;
+			if ($accountPaid1st)
+			{
+				$dueAmount = sprintf("%.2f", $accountPaid1st);
+				$itemPaid = 1;
+			}
+		}
+		elsif ($accountPay == 2)
+		{
+			$dueDate = $due15th;
+			$dueAmount = $pay15th;
+			if ($accountPaid15th)
+			{
+				$dueAmount = sprintf("%.2f", $accountPaid15th);
+				$itemPaid = 1;
+			}
+		}
+		else
+		{
+			if ($weekStart < 15)
+			{
+				$dueDate = $due1st;
+				$dueAmount = $pay1st;
+				if ($accountPaid1st)
+				{
+					$dueAmount = sprintf("%.2f", $accountPaid1st);
+					$itemPaid = 1;
+				}
+			}
+			else
+			{
+				$dueDate = $due15th;
+				$dueAmount = $pay15th;
+				if ($accountPaid15th)
+				{
+					$dueAmount = sprintf("%.2f", $accountPaid15th);
+					$itemPaid = 1;
+				}
+			}
+		}
+		#####
+		if (length($dueDate) < 2){$dueDate = "0" . $dueDate; }
+		#####
+		# $dueAmount = $budgetData->{$accountID}{'averageAmount'};
+		#####
+		if (!$itemPaid)
+		{
+			$notPaid .= "<tr><td>$debtorName</td><td>$currentMonth/$dueDate/$currentYear</td><td>\$$dueAmount</td></tr>";
+			print "\tACCOUNT :: $debtorName :: $due1st :: $due15th :: $accountPaid1st ($pay1st) :: $accountPaid15th ($pay15th) :: (ACNT Pay: $accountPay)\n";
+			#####
+			$unpaidCount ++;
+		}
+	}
+}
+$notPaid .= "</table>";
+if (!$unpaidCount) { $notPaid = "";}
+################################################################################
+my $upcoming = "<table align='center' border='1'>";
+$upcoming .= "<tr><td colspan='3'><center><h3>Upcoming Items</h3></center></td></tr>";
+$upcoming .= "<tr><td bgcolor='#C0C0C0'><center><strong>Bill Name</td><td bgcolor='#C0C0C0'><center><strong>Due Date</td><td bgcolor='#C0C0C0'><center><strong>Amount</td></tr>";
+for ($x = $weekStart; $x<=$weekEnd;$x++)
+{
+	# print "DAY :: $x\n";
+	foreach my $accountID (keys(%{$budgetData}))
+	{
+		my $checkAccount = 0;
+		my $accountPay = $budgetData->{$accountID}{'accountPay'};
+		my $debtorName = $budgetData->{$accountID}{'debtorName'};
+		my $due1st = $budgetData->{$accountID}{'due1st'};
+		my $due15th = $budgetData->{$accountID}{'due15th'};
+		my $pay1st = $budgetData->{$accountID}{'pay1st'};
+		my $pay15th = $budgetData->{$accountID}{'pay15th'};
+		my $accountPaid1st = $budgetData->{$accountID}{'accountPaid1st'};
+		my $accountPaid15th = $budgetData->{$accountID}{'accountPaid15th'};
+		#####
+		if (($due1st == $x) || ($due15th == $x)) { $checkAccount = 1;}
+		# print "CHECK :: $accountID :: $due1st ($x) :: $due15th ($x) :: $checkAccount\n";
+		#####
+		if ($x < 15) { $dueDate = $due1st; $dueAmount = $pay1st; } else { $dueDate = $due15th; $dueAmount = $pay15th;}
+		#####
+		if (length($dueDate) < 2){$dueDate = "0" . $dueDate; }
+		#####
+		if ($checkAccount)
+		{
+			my $itemPaid = 0;
+			#####
+			if (($accountPay == 1) || ($accountPay == 2))
+			{
+				if ($accountPaid1st)
+				{
+					$dueAmount = sprintf("%.2f", $accountPaid1st);
+					$itemPaid = 1;
+				}
+				elsif ($accountPaid15th)
+				{
+					$itemPaid = 1;
+					$dueAmount = sprintf("%.2f", $accountPaid15th);
+				}
+			}
+			else
+			{
+				if (($x < 15) && ($accountPaid1st))
+				{
+					$itemPaid = 1;
+					$dueAmount = sprintf("%.2f", $accountPaid1st);
+				}
+				elsif (($x >= 15) && ($accountPaid15th))
+				{
+					$itemPaid = 1;
+					$dueAmount = sprintf("%.2f", $accountPaid15th);
+				}
+			}
+			#####
+			# $dueAmount = sprintf("%.2f", $budgetData->{$accountID}{'averageAmount'});
+			#####
+			my $fntColor = "";
+			if ($itemPaid) { $fntColor = "green"; } else { $fntColor = "black"; }
+			#####
+			$upcoming .= "<tr><td><font color='$fntColor'>$debtorName</font></td><td><font color='$fntColor'>$currentMonth/$dueDate/$currentYear</font></td><td><font color='$fntColor'>\$$dueAmount</font>";
+			if ($itemPaid)
+			{
+				$upcoming .= "&nbsp;&nbsp;<bold><font color='green'>PAID</font>";
+			}
+			$upcoming .= "</td></tr>";
+		}
+	}
+}
+$upcoming .= "</table>";
+################################################################################
+my $mailBody = "<html><head></head><body>$notPaid$upcoming</body></html>";
+
+my $mime = MIME::Entity->build(Type  => 'multipart/alternative',
+                            Encoding => '-SUGGEST',
+                            From => $config->{'sg_emlFrom'},
+                            To => $config->{'sg_emlTo'},
+                            Subject => "Daily Budget Notice",
+							Debug => 1
+                            );
+
+$mime->attach(Type => 'text/html',
+            Encoding =>'-SUGGEST',
+            Data => $mailBody);
+
+
+# Open a connection to the SendGrid mail server
+my $smtp = Net::SMTP->new('smtp.sendgrid.net',
+                        Port=> 587,
+                        Timeout => 20,
+                        Hello => $config->{'sg_apiDomain'},
+						Debug => 1
+						);
+
+# Authenticate
+$smtp->auth('apikey', $config->{'sg_apiKey'});
+
+# Send the rest of the SMTP stuff to the server
+$smtp->mail($config->{'sg_emlFrom'});
+$smtp->to($config->{'sg_emlTo'});
+$smtp->data($mime->stringify);
+$smtp->quit();
+
+################################################################################
+################################################################################
+################################################################################
+################################################################################
+################################################################################
+sub sqlInit
+{
+	$getBudgetData_SQL = "SELECT
+			al.accountID,
+		    al.debtName as debtorName,
+			al.debtOwner as debtorOwner,
+		    al.accountNumber,
+			al.accountNotes,
+			al.accountActive,
+			al.accountType,
+			al.accountVisible,
+			al.accountLimit,
+			al.accountDue,
+			al.accountPay,
+			al.fidelityPay,
+		    ( SELECT round(accountInterestRate,2) FROM BucketTracker.accountInterestRate ir WHERE ir.accountID = al.accountID ORDER BY ir.entryDate DESC LIMIT 1 ) as percentRate,
+		    ( SELECT round(accountPaymentAmount,2) FROM BucketTracker.accountPayment pa WHERE pa.accountID = al.accountID ORDER BY pa.entryDate DESC LIMIT 1 ) as paymentAmount,
+		    ( SELECT round(accountBalanceDue,2) FROM BucketTracker.accountBalanceDue bd WHERE bd.accountID = al.accountID ORDER BY bd.entryDate DESC LIMIT 1 ) as balanceDue,
+			( SELECT count(*) FROM BucketTracker.AccountMonthlyPayments mp WHERE mp.accountID = al.accountID ) as paymentsPosted
+		FROM
+			BucketTracker.accountList al
+		WHERE
+			al.accountID IS NOT NULL AND
+			al.accountActive = 1 AND
+			al.accountVisible = 1
+		ORDER BY
+			al.debtName";
+	if (!($getBudgetData = $dbh->prepare($getBudgetData_SQL)))
+	{
+		print "Unable to prepare :: $getBudgetData_SQL\n";
+		exit;
+	}
+	##########
+	$getAveragePay_SQL = "SELECT round(avg(payAmount),2) as averageAmount FROM BucketTracker.AccountMonthlyPayments WHERE accountID = ?";
+	if (!($getAveragePay = $dbh->prepare($getAveragePay_SQL)))
+	{
+		print "Unable to prepare :: $getAveragePay_SQL\n";
+		exit;
+	}
+	##########
+	$getAccountPaid_SQL = "SELECT
+							count(*),
+							( SELECT sum(payAmount) FROM BucketTracker.AccountMonthlyPayments amp2 WHERE amp2.accountID = amp1.accountID and year(payDate) = $currentYear AND month(payDate) = $currentMonth AND day(payDate) <= 14) as paid1st,
+							( SELECT sum(payAmount) FROM BucketTracker.AccountMonthlyPayments amp2 WHERE amp2.accountID = amp1.accountID and year(payDate) = $currentYear AND month(payDate) = $currentMonth AND day(payDate) >= 15) as paid15th
+						FROM
+							BucketTracker.AccountMonthlyPayments amp1 WHERE accountID = ?  and year(payDate) = $currentYear AND month(payDate) = 1";
+	if (!($getAccountPaid = $dbh->prepare($getAccountPaid_SQL)))
+	{
+		print "Unable to prepare :: $getAccountPaid_SQL\n";
+		exit;
+	}
+}
+################################################################################
+sub dbInit
+{
+	$database_port = "3306";
+	#########################
+	$database      = $config->{'dbName'};
+    $database_srvr = $config->{'dbServer'};
+    $database_user = $config->{'dbUser'};
+    $database_pass = $config->{'dbPass'};
+    #########################
+	my $driver = "mysql";
+	#####
+	my $dsn = "DBI:$driver:database=$database:host=$database_srvr;port=$database_port";
+	#####
+	#my %attribs->{"RaiseError"} = 1;
+	#####
+	if (!($dbh = DBI->connect($dsn, $database_user, $database_pass,{PrintError => 1,RaiseError => 1,AutoCommit => 1,ShowErrorStatement=>1}))) {print "Error connecting to $database_srvr.\n"; exit; };
+}
+################################################################################
+################################################################################
+################################################################################
+sub readConfig
+{
+	opendir (DIR, "/config");
+	my @configFiles = readdir(DIR);
+	closedir (DIR);
+	foreach (@configFiles)
+	{
+    	my $configKey = $_;
+    	open(IN, "/config/" . $configKey);
+    	my $configValue = <IN>;
+		chomp $configValue;
+    	close (IN);
+    	$config->{$configKey} = $configValue;
+	}
+}

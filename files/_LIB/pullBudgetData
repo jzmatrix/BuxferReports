@@ -1,0 +1,101 @@
+################################################################################
+sub loadBudgetData
+{
+	if ($getBudgetData->execute())
+	{
+		while (my ($accountID, $debtorName, $debtorOwner, $accountNumber, $accountNotes, $accountActive, $accountType, $accountVisible, $accountLimit, $accountDue, $accountPay, $fidelityPay, $percentRate, $paymentAmount, $balanceDue, $paymentsPosted ) = $getBudgetData->fetchrow_array())
+		{
+			my $averageAmount;
+			my $pay1st;
+			my $pay15th;
+			my $due1st;
+			my $due15th;
+			my $accountPaid1st;
+			my $accountPaid15th;
+			$budgetData->{$accountID}{'debtorName'} = $debtorName;
+			$budgetData->{$accountID}{'debtorOwner'} = $debtorOwner;
+			$budgetData->{$accountID}{'accountNumber'} = $accountNumber;
+			$budgetData->{$accountID}{'accountNotes'} = $accountNotes;
+			$budgetData->{$accountID}{'accountActive'} = $accountActive;
+			$budgetData->{$accountID}{'accountType'} = $accountType;
+			$budgetData->{$accountID}{'accountVisible'} = $accountVisible;
+			$budgetData->{$accountID}{'accountLimit'} = $accountLimit;
+			$budgetData->{$accountID}{'accountDue'} = $accountDue;
+			$budgetData->{$accountID}{'accountPay'} = $accountPay;
+			$budgetData->{$accountID}{'fidelityPay'} = $fidelityPay;
+			$budgetData->{$accountID}{'percentRate'} = $percentRate;
+			$budgetData->{$accountID}{'paymentAmount'} = $paymentAmount;
+			$budgetData->{$accountID}{'balanceDue'} = $balanceDue;
+			$budgetData->{$accountID}{'paymentsPosted'} = $paymentsPosted;
+			##########
+			if ($getAveragePay->execute($accountID))
+			{
+				while (my ($tmpAverage) = $getAveragePay->fetchrow_array())
+				{
+					$averageAmount = $tmpAverage;
+					$budgetData->{$accountID}{'averageAmount'} = $averageAmount;
+				}
+			}
+			##########
+			if ($accountPay eq 1)
+			{
+				$pay1st = $paymentAmount;
+				$pay15th = 0;
+				$due1st = $accountDue;
+			}
+			if ($accountPay eq 2)
+			{
+				$pay15th = $paymentAmount;
+				$due15th = $accountDue;
+			}
+			if ($accountPay eq 3)
+			{
+				# print "*** Split Payment\n";
+				$pay1st = $paymentAmount / 2;
+				$pay15th = $paymentAmount / 2;
+				$due1st = $accountDue;
+				$due15th = $due1st + 15;
+				if ($due15th > $dim) { $due15th = $dim; }
+			}
+			$budgetData->{$accountID}{'pay1st'} = $pay1st;
+			$budgetData->{$accountID}{'pay15th'} = $pay15th;
+			$budgetData->{$accountID}{'due1st'} = $due1st;
+			$budgetData->{$accountID}{'due15th'} = $due15th;
+			##########
+			if ($accountType eq "AVG")
+			{
+				$budgetData->{$accountID}{'pay1st'} = $averageAmount;
+				$budgetData->{$accountID}{'pay15th'} = $averageAmount;
+			}
+			##########
+			if ($getAccountPaid->execute($accountID))
+			{
+				while (my ($payCnt, $tmpPay1st, $tmpPay15th) = $getAccountPaid->fetchrow_array())
+				{
+					$accountPaid1st = $tmpPay1st;
+					$accountPaid15th = $tmpPay15th;
+					$budgetData->{$accountID}{'accountPaid1st'} = $accountPaid1st;
+					$budgetData->{$accountID}{'accountPaid15th'} = $accountPaid15th;
+				}
+			}
+			##########
+			# print "Budget Entry :: $accountID\n";
+			# print "\tDebtor: $debtorName\n";
+			# print "\tType: $accountType\n";
+			# # print "\tAccount: $accountNumber\n";
+			# # print "\tActive: $accountActive\n";
+			# # print "\tVisible: $accountVisible\n";
+			# print "\tDue: $accountDue || $due1st :: $due15th ($dim) || $accountPaid1st :: $accountPaid15th\n";
+			# print "\tPay: $accountPay :: $fidelityPay || $pay1st :: $pay15th\n";
+			# print "\tAmount: $paymentAmount :: $averageAmount\n";
+			# # print "\tBalance: $balanceDue\n";
+			# # print "\tPosted: $paymentsPosted\n";
+			# print "----------------------------------------------------\n";
+		}
+	}
+}
+################################################################################
+
+
+################################################################################
+return 1;
