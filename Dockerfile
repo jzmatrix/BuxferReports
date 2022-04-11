@@ -20,9 +20,6 @@ RUN chmod 0600 /root/.ssh/authorized_keys && \
     chmod 755 /opt/startServices.sh && \
     chmod 644 /root/.bash_profile
 ################################################################################
-ADD script/mapPayments /opt/buxfer/mapPayments
-RUN chmod 755 /opt/buxfer/mapPayments
-################################################################################
 ADD files/budgetReport /opt/buxfer/budgetReport
 ADD files/bankingReport /opt/buxfer/bankingReport
 RUN chmod 755 /opt/buxfer/budgetReport
