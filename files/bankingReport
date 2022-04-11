@@ -197,7 +197,7 @@ sub unmatchedTrans
 {
 
 	$unmatched = "<table align='center' border='1'>";
-	$unmatched .= "<tr><td colspan='3'><center><h3>UnMatched Items</h3></center></td></tr>";
+	$unmatched .= "<tr><td colspan='5'><center><h3>UnMatched Items</h3></center></td></tr>";
 	$unmatched .= "<tr>";
 	$unmatched .= "<td bgcolor='#C0C0C0'><center><strong>Date</td>";
 	$unmatched .= "<td bgcolor='#C0C0C0'><center><strong>Description</td>";
