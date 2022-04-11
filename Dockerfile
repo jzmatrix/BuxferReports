@@ -25,5 +25,5 @@ ADD files/bankingReport /opt/buxfer/bankingReport
 RUN chmod 755 /opt/buxfer/budgetReport
 RUN chmod 755 /opt/buxfer/bankingReport
 ################################################################################
-#CMD ["/opt/buxfer/bankingReport"]   # Used when deployed
-CMD [ "/opt/startServices.sh" ] # Only used for dev and testing
+CMD ["/opt/buxfer/bankingReport"]   # Used when deployed
+# CMD [ "/opt/startServices.sh" ] # Only used for dev and testing
