@@ -23,17 +23,11 @@ my $currentDay = strftime("%d",localtime(time()));
 my $currentYear =  strftime("%Y",localtime(time()));
 my $currentDate =  strftime("%Y-%m-%d",localtime(time()));
 my $currentDOW = strftime("%w",localtime(time()));
-
+######
 $dim = Days_in_Month($currentYear,$currentMonth);
-
-# print "Banking REport :: $currentMonthStr :: $currentDay :: $currentMonth :: $currentYear :: $currentDate :: $currentDOW :: $dim\n";
-
 #####
 my $weekStart = $currentDay - $currentDOW;
-# $weekStart = 4;
-#####
 my $weekEnd = $currentDay + (6 - $currentDOW);
-# print "\tWEEK :: $weekStart :: $weekEnd\n";
 ################################################################################
 &dbInit;
 &sqlInit;
@@ -194,8 +188,47 @@ for ($x = $weekStart; $x<=$weekEnd;$x++)
 	}
 }
 $upcoming .= "</table>";
+
+&unmatchedTrans;
 ################################################################################
-my $mailBody = "<html><head></head><body>$notPaid$upcoming</body></html>";
+################################################################################
+################################################################################
+sub unmatchedTrans
+{
+
+	my $unmatched = "<table align='center' border='1'>";
+	$unmatched .= "<tr><td colspan='3'><center><h3>UnMatched Items</h3></center></td></tr>";
+	$unmatched .= "<tr>";
+	$unmatched .= "<td bgcolor='#C0C0C0'><center><strong>Date</td>";
+	$unmatched .= "<td bgcolor='#C0C0C0'><center><strong>Description</td>";
+	$unmatched .= "<td bgcolor='#C0C0C0'><center><strong>Amount</td>";
+	$unmatched .= "<td bgcolor='#C0C0C0'><center><strong>Tags</td>";
+	$unmatched .= "<td bgcolor='#C0C0C0'><center><strong>Type</td>";
+	$unmatched .= "</tr>";
+	##########
+	if ($unmatchedTrans_DTA->execute())
+	{
+		while (my ($transDate, $transDesc, $transAmount, $transTags, $transType) = $unmatchedTrans_DTA->fetchrow_array())
+		{
+			$transAmount = sprintf("%.2f", $transAmount);
+			#####
+			$fntColor = "black";
+			$unmatched .= "<tr>";
+			$unmatched .= "<td><font color='$fntColor'>$transDate</font></td>";
+			$unmatched .= "<td><font color='$fntColor'>$transDesc</font></td>";
+			$unmatched .= "<td><font color='$fntColor'>$transAmount</font></td>";
+			$unmatched .= "<td><font color='$fntColor'>$transTags</font></td>";
+			$unmatched .= "<td><font color='$fntColor'>$transType</font></td>";
+			$unmatched .= "</tr>";
+		}
+	}
+	##########
+	$unmatched .= "</table>";
+}
+################################################################################
+################################################################################
+################################################################################
+my $mailBody = "<html><head></head><body>$notPaid<hr>$upcoming<hr>$unmatched</body></html>";
 
 my $mime = MIME::Entity->build(Type  => 'multipart/alternative',
                             Encoding => '-SUGGEST',
@@ -209,8 +242,6 @@ $mime->attach(Type => 'text/html',
             Encoding =>'-SUGGEST',
             Data => $mailBody);
 
-
-# Open a connection to the SendGrid mail server
 my $smtp = Net::SMTP->new('smtp.sendgrid.net',
                         Port=> 587,
                         Timeout => 20,
@@ -218,10 +249,8 @@ my $smtp = Net::SMTP->new('smtp.sendgrid.net',
 						Debug => 1
 						);
 
-# Authenticate
 $smtp->auth('apikey', $config->{'sg_apiKey'});
 
-# Send the rest of the SMTP stuff to the server
 $smtp->mail($config->{'sg_emlFrom'});
 $smtp->to($config->{'sg_emlTo'});
 $smtp->data($mime->stringify);
@@ -281,6 +310,13 @@ sub sqlInit
 	if (!($getAccountPaid = $dbh->prepare($getAccountPaid_SQL)))
 	{
 		print "Unable to prepare :: $getAccountPaid_SQL\n";
+		exit;
+	}
+	####################
+	my $unmatchedTrans_SQL = "SELECT transDate, transDesc, transAmount, transTags, transType FROM buxfer.unmatchedTrans";
+	if (!($unmatchedTrans_DTA = $dbh->prepare($unmatchedTrans_SQL)))
+	{
+		print "Unable to prepare :: $unmatchedTrans_SQL\n";
 		exit;
 	}
 }
