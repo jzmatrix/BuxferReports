@@ -11,6 +11,7 @@ use Date::Calc qw(:all);; # perl-Date-Calc
 
 use Net::SMTP;
 ################################################################################
+$debug = 1;
 &readConfig;
 ################################################################################
 require("/opt/buxfer/_LIB/pullBudgetData");
@@ -120,7 +121,7 @@ if (!$unpaidCount) { $notPaid = "";}
 my $upcoming = "<table align='center' border='1'>";
 $upcoming .= "<tr><td colspan='3'><center><h3>Upcoming Items</h3></center></td></tr>";
 $upcoming .= "<tr><td bgcolor='#C0C0C0'><center><strong>Bill Name</td><td bgcolor='#C0C0C0'><center><strong>Due Date</td><td bgcolor='#C0C0C0'><center><strong>Amount</td></tr>";
-for ($x = $weekStart; $x<=$weekEnd;$x++)
+for ($x = ($weekStart - 6); $x<=$weekEnd;$x++)
 {
 	# print "DAY :: $x\n";
 	foreach my $accountID (keys(%{$budgetData}))
@@ -246,7 +247,7 @@ my $smtp = Net::SMTP->new('smtp.sendgrid.net',
                         Port=> 587,
                         Timeout => 20,
                         Hello => $config->{'sg_apiDomain'},
-						Debug => 1
+						Debug => $debug
 						);
 
 $smtp->auth('apikey', $config->{'sg_apiKey'});
@@ -349,10 +350,18 @@ sub readConfig
 	foreach (@configFiles)
 	{
     	my $configKey = $_;
-    	open(IN, "/config/" . $configKey);
-    	my $configValue = <IN>;
-		chomp $configValue;
-    	close (IN);
-    	$config->{$configKey} = $configValue;
+		if ((substr($configKey,0,1) ne ".") && ($configKey !~ 'swp'))
+		{
+			open(IN, "/config/" . $configKey);
+			my $configValue = <IN>;
+			chomp $configValue;
+			close (IN);
+			$config->{$configKey} = $configValue;
+			#####
+			if ($debug)
+			{
+				print "CONFIG :: $configKey :: $configValue\n";
+			}
+		}
 	}
 }

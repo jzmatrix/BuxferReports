@@ -1,3 +1,5 @@
+docker build BuxferReports -t jzmatrix/buxferreports
+
 docker run -t -i --mount type=bind,src=/mnt/c/Users/jason/OneDrive/FileShare/CodeRepo/Docker/BuxferReports/files,dst=/opt/buxfer --mount type=bind,src=/mnt/c/Users/jason/OneDrive/FileShare/CodeRepo/TEMP/buxfer_config,dst=/config jzmatrix/buxferreports bash
 
 jzmatrix/buxferreports
