@@ -224,6 +224,24 @@ sub unmatchedTrans
 		}
 	}
 	##########
+	if ($unmatchedTransSUM_DTA->execute())
+	{
+		while (my ($transAmountSUM) = $unmatchedTransSUM_DTA->fetchrow_array())
+		{
+			$transAmountSUM = sprintf("%.2f", $transAmountSUM);
+			#####
+			#####
+			$fntColor = "blue";
+			$unmatched .= "<tr>";
+			$unmatched .= "<td><font></font></td>";
+			$unmatched .= "<td><font></font></td>";
+			$unmatched .= "<td><font color='$fntColor'>$transAmount</font></td>";
+			$unmatched .= "<td><font></font></td>";
+			$unmatched .= "<td><font></font></td>";
+			$unmatched .= "</tr>";
+		}
+	}
+	##########
 	$unmatched .= "</table>";
 }
 ################################################################################
@@ -318,6 +336,13 @@ sub sqlInit
 	if (!($unmatchedTrans_DTA = $dbh->prepare($unmatchedTrans_SQL)))
 	{
 		print "Unable to prepare :: $unmatchedTrans_SQL\n";
+		exit;
+	}
+	####################
+	my $unmatchedTransSUM_SQL = "SELECT sum(transAmount) FROM buxfer.unmatchedTrans";
+	if (!($unmatchedTransSUM_DTA = $dbh->prepare($unmatchedTransSUM_SQL)))
+	{
+		print "Unable to prepare :: $unmatchedTransSUM_SQL\n";
 		exit;
 	}
 }
