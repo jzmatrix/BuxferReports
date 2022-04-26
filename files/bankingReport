@@ -118,6 +118,17 @@ foreach my $accountID (keys(%{$budgetData}))
 $notPaid .= "</table>";
 if (!$unpaidCount) { $notPaid = "";}
 ################################################################################
+$accountBalance = 0;
+$accountSynced;
+if ($accountLedgerBalance->execute())
+{
+	while (my ($loadAccount, $loadBalance, $loadSynced) = $accountLedgerBalance->fetchrow_array())
+	{
+		$accountBalance = $loadBalance;
+		$accountSynced = $loadSynced;
+	}
+}
+################################################################################
 $paidSum = 0;
 $unpaidSum = 0;
 #####
@@ -197,7 +208,9 @@ for ($x = ($weekStart - 6); $x<=$weekEnd;$x++)
 	}
 	$paidSum = sprintf("%.2f", $paidSum);
 	$unpaidSum = sprintf("%.2f", $unpaidSum);
+	$accountBalance = sprintf("%.2f", $accountBalance);
 	$upcoming .= "<tr><td></td><td></td><td><font color='green'>\$$paidSum</font><br><font color='black'>\$$unpaidSum</font></td></tr>";
+	$upcoming .= "<tr><td></td><td></td><td><font color='blue'>\$$accountBalance</font><br><small>$accountSynced</small></td></tr>";
 }
 $upcoming .= "</table>";
 
@@ -354,6 +367,13 @@ sub sqlInit
 	if (!($unmatchedTransSUM_DTA = $dbh->prepare($unmatchedTransSUM_SQL)))
 	{
 		print "Unable to prepare :: $unmatchedTransSUM_SQL\n";
+		exit;
+	}
+	####################
+	my $accountLedgerBalance_SQL = "SELECT accountID, accountBalance, accountSynced FROM buxfer.Accounts WHERE accountID = '" . $config->{'ledgerAccount'}; . "'";
+	if (!($accountLedgerBalance = $dbh->prepare($accountLedgerBalance_SQL)))
+	{
+		print "Unable to prepare :: $accountLedgerBalance_SQL\n";
 		exit;
 	}
 }
