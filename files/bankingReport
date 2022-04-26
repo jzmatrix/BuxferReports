@@ -206,12 +206,14 @@ for ($x = ($weekStart - 6); $x<=$weekEnd;$x++)
 			$upcoming .= "</td></tr>";
 		}
 	}
-	$paidSum = sprintf("%.2f", $paidSum);
-	$unpaidSum = sprintf("%.2f", $unpaidSum);
-	$accountBalance = sprintf("%.2f", $accountBalance);
-	$upcoming .= "<tr><td></td><td></td><td><font color='green'>\$$paidSum</font><br><font color='black'>\$$unpaidSum</font></td></tr>";
-	$upcoming .= "<tr><td></td><td></td><td><font color='blue'>\$$accountBalance</font><br><small>$accountSynced</small></td></tr>";
 }
+#####
+$paidSum = sprintf("%.2f", $paidSum);
+$unpaidSum = sprintf("%.2f", $unpaidSum);
+$accountBalance = sprintf("%.2f", $accountBalance);
+$upcoming .= "<tr><td></td><td></td><td><font color='green'>\$$paidSum</font><br><font color='black'>\$$unpaidSum</font></td></tr>";
+$upcoming .= "<tr><td></td><td></td><td><font color='blue'>\$$accountBalance</font><br><small>$accountSynced</small></td></tr>";
+#####
 $upcoming .= "</table>";
 
 &unmatchedTrans;
