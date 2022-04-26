@@ -118,6 +118,9 @@ foreach my $accountID (keys(%{$budgetData}))
 $notPaid .= "</table>";
 if (!$unpaidCount) { $notPaid = "";}
 ################################################################################
+$paidSum = 0;
+$unpaidSum = 0;
+#####
 my $upcoming = "<table align='center' border='1'>";
 $upcoming .= "<tr><td colspan='3'><center><h3>Upcoming Items</h3></center></td></tr>";
 $upcoming .= "<tr><td bgcolor='#C0C0C0'><center><strong>Bill Name</td><td bgcolor='#C0C0C0'><center><strong>Due Date</td><td bgcolor='#C0C0C0'><center><strong>Amount</td></tr>";
@@ -183,10 +186,18 @@ for ($x = ($weekStart - 6); $x<=$weekEnd;$x++)
 			if ($itemPaid)
 			{
 				$upcoming .= "&nbsp;&nbsp;<bold><font color='green'>PAID</font>";
+				$paidSum += $dueAmount;
+			}
+			else
+			{
+				$unpaidSum += $dueAmount;
 			}
 			$upcoming .= "</td></tr>";
 		}
 	}
+	$paidSum = sprintf("%.2f", $paidSum);
+	$unpaidSum = sprintf("%.2f", $unpaidSum);
+	$upcoming .= "<tr><td></td><td></td><td><font color='green'>\$$paidSum</font><br><font color='black'>\$$unpaidSum</font></td></tr>";
 }
 $upcoming .= "</table>";
 
@@ -235,7 +246,7 @@ sub unmatchedTrans
 			$unmatched .= "<tr>";
 			$unmatched .= "<td><font></font></td>";
 			$unmatched .= "<td><font></font></td>";
-			$unmatched .= "<td><font color='$fntColor'>$transAmount</font></td>";
+			$unmatched .= "<td><font color='$fntColor'>$transAmountSUM</font></td>";
 			$unmatched .= "<td><font></font></td>";
 			$unmatched .= "<td><font></font></td>";
 			$unmatched .= "</tr>";
