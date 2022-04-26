@@ -21,7 +21,6 @@ RUN chmod 0600 /root/.ssh/authorized_keys && \
     chmod 644 /root/.bash_profile
 ################################################################################
 ADD files /opt/buxfer/
-RUN chmod 755 /opt/buxfer/budgetReport
 RUN chmod 755 /opt/buxfer/bankingReport
 ################################################################################
 CMD ["/opt/buxfer/bankingReport"]   # Used when deployed
