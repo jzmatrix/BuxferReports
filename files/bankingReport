@@ -370,7 +370,7 @@ sub sqlInit
 		exit;
 	}
 	####################
-	my $accountLedgerBalance_SQL = "SELECT accountID, accountBalance, accountSynced FROM buxfer.Accounts WHERE accountID = '" . $config->{'ledgerAccount'}; . "'";
+	my $accountLedgerBalance_SQL = "SELECT accountID, accountBalance, accountSynced FROM buxfer.Accounts WHERE accountID = '" . $config->{'ledgerAccount'} . "'";
 	if (!($accountLedgerBalance = $dbh->prepare($accountLedgerBalance_SQL)))
 	{
 		print "Unable to prepare :: $accountLedgerBalance_SQL\n";
