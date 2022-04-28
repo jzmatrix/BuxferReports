@@ -8,7 +8,6 @@ use DBI;
 use Getopt::Long;
 use POSIX qw(strftime);
 use Date::Calc qw(:all);; # perl-Date-Calc
-
 use Net::SMTP;
 ################################################################################
 $debug = 1;
