@@ -385,8 +385,8 @@ sub dbInit
 	#########################
 	$database      = $config->{'dbName'};
     $database_srvr = $config->{'dbServer'};
-    $database_user = $config->{'dbUser'};
-    $database_pass = $config->{'dbPass'};
+    $database_user = $config->{'kikUser'};
+    $database_pass = $config->{'kikPass'};
     #########################
 	my $driver = "mysql";
 	#####
