@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cron-{{ .Values.serviceName }}
+  namespace: {{ .Values.namespace }}
+spec:
+  schedule: {{ .Values.cronSchedule }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: cron-{{ .Values.serviceName }}
+            image: "{{ .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+            imagePullPolicy: Always
+            {{- if .Values.volumeMounts }}
+            volumeMounts:{{- include "zHelper.volumeMounts" . | nindent 12  }}
+            {{- end }}
+          imagePullSecrets:
+          - name: dhub
+          {{- if .Values.volumes }}
+          volumes:
+            {{- include "zHelper.volumes" . | nindent 10 }}
+          {{- end }}
